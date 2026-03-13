@@ -41,6 +41,9 @@ CASKS = {
       arm64_linux: "arm64_linux",
     },
     latest_url: "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/latest",
+    manifest_url: lambda { |version|
+      "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/#{version}/manifest.json"
+    },
     version_regex: /\Av?(\d+(?:\.\d+)+)\z/,
     paths: {
       arm: "darwin-arm64",
@@ -117,6 +120,16 @@ def latest_claude_version
   match[1]
 end
 
+def claude_manifest(version)
+  manifest_url = CASKS.fetch("claude-code").fetch(:manifest_url).call(version)
+  manifest = JSON.parse(http_request(manifest_url))
+  manifest_version = manifest["version"]
+
+  return manifest if manifest_version == version
+
+  raise "unexpected claude-code manifest version #{manifest_version.inspect} for #{version}"
+end
+
 def remote_sha256(url)
   digest = OpenSSL::Digest::SHA256.new
   http_request(url) do |response|
@@ -145,10 +158,14 @@ def codex_shas(release, version)
   end
 end
 
-def claude_shas(version)
+def claude_shas(manifest, version)
+  platforms = manifest.fetch("platforms")
   CASKS.fetch("claude-code").fetch(:sha_order).to_h do |key|
-    url = CASKS.fetch("claude-code").fetch(:url_for).call(version, key)
-    [key, remote_sha256(url)]
+    path = CASKS.fetch("claude-code").fetch(:paths).fetch(key)
+    checksum = platforms.dig(path, "checksum")
+    raise "missing claude-code checksum for #{version} #{path}" unless checksum
+
+    [key, checksum]
   end
 end
 
@@ -190,7 +207,7 @@ def resolve_latest(cask_name)
     [version, release]
   when "claude-code"
     version = latest_claude_version
-    [version, nil]
+    [version, claude_manifest(version)]
   else
     raise "unknown cask #{cask_name}"
   end
@@ -212,7 +229,7 @@ def update_cask(cask_name, dry_run:)
   when "codex"
     codex_shas(metadata, latest_version)
   when "claude-code"
-    claude_shas(latest_version)
+    claude_shas(metadata, latest_version)
   else
     raise "unknown cask #{cask_name}"
   end
