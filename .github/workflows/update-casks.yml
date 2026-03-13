@@ -1,0 +1,57 @@
+name: Update Casks
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types:
+      - release
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-casks
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+
+      - name: Update casks
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          updated=0
+
+          while IFS= read -r file; do
+            cask_name=$(basename "$file" .rb)
+
+            echo "Checking ${cask_name}"
+            script/update-cask "$cask_name"
+
+            if git diff --quiet --exit-code -- "$file"; then
+              echo "No ${cask_name} update to commit"
+              continue
+            fi
+
+            version=$(ruby -ne 'puts $1 if /^  version "([^"]+)"$/ =~ $_' "$file")
+            git add "$file"
+            git commit -m "${cask_name} ${version}"
+            updated=1
+          done < <(find Casks -type f -name "*.rb" | sort)
+
+          if [ "$updated" -eq 1 ]; then
+            git push
+          else
+            echo "No cask updates to push"
+          fi
