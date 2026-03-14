@@ -98,12 +98,22 @@ def github_headers
 end
 
 def latest_codex_release
-  releases = JSON.parse(http_request("https://api.github.com/repos/#{CASKS.fetch("codex").fetch(:github_repo)}/releases?per_page=20", headers: github_headers))
+  page = 1
+  release = nil
 
-  release = releases.find do |item|
-    !item.fetch("draft") &&
-      !item.fetch("prerelease") &&
-      item.fetch("tag_name").match?(CASKS.fetch("codex").fetch(:tag_regex))
+  loop do
+    releases = JSON.parse(http_request("https://api.github.com/repos/#{CASKS.fetch("codex").fetch(:github_repo)}/releases?per_page=100&page=#{page}", headers: github_headers))
+    break if releases.empty?
+
+    release = releases.find do |item|
+      !item.fetch("draft") &&
+        !item.fetch("prerelease") &&
+        item.fetch("tag_name").match?(CASKS.fetch("codex").fetch(:tag_regex))
+    end
+
+    break if release
+
+    page += 1
   end
 
   raise "no stable codex release found" unless release
