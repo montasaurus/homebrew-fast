@@ -5,6 +5,8 @@ on:
   repository_dispatch:
     types:
       - release
+  schedule:
+    - cron: '0 12 * * 1-5' 
 
 permissions:
   contents: write
