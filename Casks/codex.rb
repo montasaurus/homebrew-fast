@@ -2,11 +2,11 @@ cask "codex" do
   arch arm: "aarch64", intel: "x86_64"
   os macos: "apple-darwin", linux: "unknown-linux-musl"
 
-  version "0.131.0"
-  sha256 arm:          "5997e22af1a05ec303be6e06a9f8cd950da38da4b909b6819747f1782e66825c",
-         intel:        "7359093511b8b99c8ed06f4500d2148515a719e4c256d5d115e960d4b8a9630b",
-         arm64_linux:  "dfef7c98b67bd1cc857ef5c505b6eee78872610e6bcdc19dc174d695a56082b6",
-         x86_64_linux: "f5b26732b76c9543742f7937a7c88f879e00c0a73b673008043a5cee63e8361d"
+  version "0.132.0"
+  sha256 arm:          "73258e01c122941c21bb8afbb81daff2ffdd8d3e803754fd411340c24257fdce",
+         intel:        "58acad9af4f3b6dbabf6a1255baeac2384310b208d8b14a8899772cc72f99ea1",
+         arm64_linux:  "ae80a8ffb41abfca4eba9746cd3ba90403d57b02bdbcd68455f560890ad9f440",
+         x86_64_linux: "8b64432ee4ef5b1d7d197aad4535a276bc85223f4e4163769c0e1015cda883b2"
   url "https://github.com/openai/codex/releases/download/rust-v#{version}/codex-#{arch}-#{os}.tar.gz"
   name "Codex"
   desc "OpenAI's coding agent that runs in your terminal"
