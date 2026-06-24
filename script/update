@@ -8,8 +8,9 @@ require "uri"
 
 ROOT = File.expand_path("..", __dir__)
 
-CASKS = {
+PACKAGES = {
   "codex" => {
+    type: :cask,
     file: "Casks/codex.rb",
     sha_order: %i[arm intel arm64_linux x86_64_linux],
     labels: {
@@ -27,11 +28,12 @@ CASKS = {
       x86_64_linux: "codex-x86_64-unknown-linux-musl.tar.gz",
     },
     url_for: lambda { |version, key|
-      asset = CASKS.fetch("codex").fetch(:assets).fetch(key)
+      asset = PACKAGES.fetch("codex").fetch(:assets).fetch(key)
       "https://github.com/openai/codex/releases/download/rust-v#{version}/#{asset}"
     },
   },
   "claude-code" => {
+    type: :cask,
     file: "Casks/claude-code.rb",
     sha_order: %i[arm x86_64 x86_64_linux arm64_linux],
     labels: {
@@ -52,14 +54,31 @@ CASKS = {
       arm64_linux: "linux-arm64",
     },
     url_for: lambda { |version, key|
-      path = CASKS.fetch("claude-code").fetch(:paths).fetch(key)
+      path = PACKAGES.fetch("claude-code").fetch(:paths).fetch(key)
       "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/#{version}/#{path}/claude"
+    },
+  },
+  "nub" => {
+    type: :formula,
+    file: "Formula/nub.rb",
+    sha_order: %i[darwin_arm64 darwin_x64 linux_arm64 linux_x64],
+    github_repo: "nubjs/nub",
+    tag_regex: /\Av(\d+(?:\.\d+)+)\z/,
+    assets: {
+      darwin_arm64: "nub-darwin-arm64.tar.gz",
+      darwin_x64: "nub-darwin-x64.tar.gz",
+      linux_arm64: "nub-linux-arm64.tar.gz",
+      linux_x64: "nub-linux-x64.tar.gz",
+    },
+    url_for: lambda { |version, key|
+      asset = PACKAGES.fetch("nub").fetch(:assets).fetch(key)
+      "https://github.com/nubjs/nub/releases/download/v#{version}/#{asset}"
     },
   },
 }.freeze
 
 def usage
-  warn "usage: script/update-cask <codex|claude-code|all> [--dry-run]"
+  warn "usage: script/update <#{PACKAGES.keys.join('|')}|all> [--dry-run]"
   exit 1
 end
 
@@ -97,18 +116,19 @@ def github_headers
   headers
 end
 
-def latest_codex_release
+def latest_github_release(package_name)
+  config = PACKAGES.fetch(package_name)
   page = 1
   release = nil
 
   loop do
-    releases = JSON.parse(http_request("https://api.github.com/repos/#{CASKS.fetch("codex").fetch(:github_repo)}/releases?per_page=100&page=#{page}", headers: github_headers))
+    releases = JSON.parse(http_request("https://api.github.com/repos/#{config.fetch(:github_repo)}/releases?per_page=100&page=#{page}", headers: github_headers))
     break if releases.empty?
 
     release = releases.find do |item|
       !item.fetch("draft") &&
         !item.fetch("prerelease") &&
-        item.fetch("tag_name").match?(CASKS.fetch("codex").fetch(:tag_regex))
+        item.fetch("tag_name").match?(config.fetch(:tag_regex))
     end
 
     break if release
@@ -116,22 +136,22 @@ def latest_codex_release
     page += 1
   end
 
-  raise "no stable codex release found" unless release
+  raise "no stable #{package_name} release found" unless release
 
-  version = release.fetch("tag_name")[CASKS.fetch("codex").fetch(:tag_regex), 1]
+  version = release.fetch("tag_name")[config.fetch(:tag_regex), 1]
   [version, release]
 end
 
 def latest_claude_version
-  body = http_request(CASKS.fetch("claude-code").fetch(:latest_url)).strip
-  match = CASKS.fetch("claude-code").fetch(:version_regex).match(body)
+  body = http_request(PACKAGES.fetch("claude-code").fetch(:latest_url)).strip
+  match = PACKAGES.fetch("claude-code").fetch(:version_regex).match(body)
   raise "unexpected claude-code latest marker: #{body.inspect}" unless match
 
   match[1]
 end
 
 def claude_manifest(version)
-  manifest_url = CASKS.fetch("claude-code").fetch(:manifest_url).call(version)
+  manifest_url = PACKAGES.fetch("claude-code").fetch(:manifest_url).call(version)
   manifest = JSON.parse(http_request(manifest_url))
   manifest_version = manifest["version"]
 
@@ -150,14 +170,15 @@ def remote_sha256(url)
   digest.hexdigest
 end
 
-def codex_shas(release, version)
+def github_asset_shas(package_name, release, version)
+  config = PACKAGES.fetch(package_name)
   assets = release.fetch("assets").each_with_object({}) do |asset, memo|
     memo[asset.fetch("name")] = asset
   end
 
-  CASKS.fetch("codex").fetch(:sha_order).to_h do |key|
-    asset_name = CASKS.fetch("codex").fetch(:assets).fetch(key)
-    asset = assets.fetch(asset_name) { raise "missing codex asset #{asset_name} for #{version}" }
+  config.fetch(:sha_order).to_h do |key|
+    asset_name = config.fetch(:assets).fetch(key)
+    asset = assets.fetch(asset_name) { raise "missing #{package_name} asset #{asset_name} for #{version}" }
     digest = asset["digest"]
     sha = if digest&.start_with?("sha256:")
       digest.delete_prefix("sha256:")
@@ -170,8 +191,8 @@ end
 
 def claude_shas(manifest, version)
   platforms = manifest.fetch("platforms")
-  CASKS.fetch("claude-code").fetch(:sha_order).to_h do |key|
-    path = CASKS.fetch("claude-code").fetch(:paths).fetch(key)
+  PACKAGES.fetch("claude-code").fetch(:sha_order).to_h do |key|
+    path = PACKAGES.fetch("claude-code").fetch(:paths).fetch(key)
     checksum = platforms.dig(path, "checksum")
     raise "missing claude-code checksum for #{version} #{path}" unless checksum
 
@@ -183,9 +204,9 @@ def current_version(content)
   content[/^  version "([^"]+)"$/, 1]
 end
 
-def render_sha_block(cask_name, shas)
-  labels = CASKS.fetch(cask_name).fetch(:labels)
-  order = CASKS.fetch(cask_name).fetch(:sha_order)
+def render_cask_sha_block(package_name, shas)
+  labels = PACKAGES.fetch(package_name).fetch(:labels)
+  order = PACKAGES.fetch(package_name).fetch(:sha_order)
   width = order.map { |key| labels.fetch(key).length }.max
 
   order.each_with_index.map do |key, index|
@@ -196,13 +217,36 @@ def render_sha_block(cask_name, shas)
   end.join("\n")
 end
 
-def update_file(cask_name, version, shas, dry_run:)
-  config = CASKS.fetch(cask_name)
+def update_formula_shas(content, package_name, shas)
+  order = PACKAGES.fetch(package_name).fetch(:sha_order)
+  index = 0
+  updated = content.gsub(/^      sha256 "[0-9a-f]{64}"$/) do
+    key = order.fetch(index) do
+      raise "too many sha256 lines in #{package_name}"
+    end
+    index += 1
+    %(      sha256 "#{shas.fetch(key)}")
+  end
+
+  raise "expected #{order.length} sha256 lines in #{package_name}, found #{index}" unless index == order.length
+
+  updated
+end
+
+def update_file(package_name, version, shas, dry_run:)
+  config = PACKAGES.fetch(package_name)
   path = File.join(ROOT, config.fetch(:file))
   original = File.read(path)
 
   updated = original.sub(/^  version "([^"]+)"$/, %(  version "#{version}"))
-  updated = updated.sub(/^  sha256 .*?(?=^  url )/m, "#{render_sha_block(cask_name, shas)}\n")
+  updated = case config.fetch(:type)
+  when :cask
+    updated.sub(/^  sha256 .*?(?=^  url )/m, "#{render_cask_sha_block(package_name, shas)}\n\n")
+  when :formula
+    update_formula_shas(updated, package_name, shas)
+  else
+    raise "unknown package type #{config.fetch(:type)} for #{package_name}"
+  end
 
   changed = updated != original
   File.write(path, updated) if changed && !dry_run
@@ -210,47 +254,51 @@ def update_file(cask_name, version, shas, dry_run:)
   [path, changed, current_version(original)]
 end
 
-def resolve_latest(cask_name)
-  case cask_name
-  when "codex"
-    version, release = latest_codex_release
+def resolve_latest(package_name)
+  case package_name
+  when "codex", "nub"
+    version, release = latest_github_release(package_name)
     [version, release]
   when "claude-code"
     version = latest_claude_version
     [version, claude_manifest(version)]
   else
-    raise "unknown cask #{cask_name}"
+    raise "unknown package #{package_name}"
   end
 end
 
-def update_cask(cask_name, dry_run:)
-  config = CASKS.fetch(cask_name)
+def package_shas(package_name, metadata, version)
+  case package_name
+  when "codex", "nub"
+    github_asset_shas(package_name, metadata, version)
+  when "claude-code"
+    claude_shas(metadata, version)
+  else
+    raise "unknown package #{package_name}"
+  end
+end
+
+def update_package(package_name, dry_run:)
+  config = PACKAGES.fetch(package_name)
   path = File.join(ROOT, config.fetch(:file))
   original = File.read(path)
   existing_version = current_version(original)
-  latest_version, metadata = resolve_latest(cask_name)
+  latest_version, metadata = resolve_latest(package_name)
 
   if latest_version == existing_version
-    puts "#{cask_name} already current at #{existing_version}"
+    puts "#{package_name} already current at #{existing_version}"
     return
   end
 
-  shas = case cask_name
-  when "codex"
-    codex_shas(metadata, latest_version)
-  when "claude-code"
-    claude_shas(metadata, latest_version)
-  else
-    raise "unknown cask #{cask_name}"
-  end
+  shas = package_shas(package_name, metadata, latest_version)
 
-  path, changed, previous_version = update_file(cask_name, latest_version, shas, dry_run: dry_run)
+  path, changed, previous_version = update_file(package_name, latest_version, shas, dry_run: dry_run)
 
   if changed
     action = dry_run ? "would update" : "updated"
-    puts "#{action} #{cask_name}: #{previous_version} -> #{latest_version} (#{path})"
+    puts "#{action} #{package_name}: #{previous_version} -> #{latest_version} (#{path})"
   else
-    puts "#{cask_name} already current at #{existing_version}"
+    puts "#{package_name} already current at #{existing_version}"
   end
 end
 
@@ -259,7 +307,7 @@ dry_run = args.delete("--dry-run")
 target = args.shift
 usage unless target && args.empty?
 
-targets = target == "all" ? CASKS.keys : [target]
-targets.each do |cask_name|
-  update_cask(cask_name, dry_run: dry_run)
+targets = target == "all" ? PACKAGES.keys : [target]
+targets.each do |package_name|
+  update_package(package_name, dry_run: dry_run)
 end
