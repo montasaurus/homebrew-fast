@@ -1,4 +1,4 @@
-name: Update Casks
+name: Update Packages
 
 on:
   workflow_dispatch:
@@ -6,13 +6,13 @@ on:
     types:
       - release
   schedule:
-    - cron: '0 12 * * 1-5' 
+    - cron: '0 12 * * 1-5'
 
 permissions:
   contents: write
 
 concurrency:
-  group: update-casks
+  group: update-packages
   cancel-in-progress: false
 
 jobs:
@@ -26,7 +26,7 @@ jobs:
         with:
           ruby-version: "3.4"
 
-      - name: Update casks
+      - name: Update packages
         run: |
           set -euo pipefail
 
@@ -36,24 +36,24 @@ jobs:
           updated=0
 
           while IFS= read -r file; do
-            cask_name=$(basename "$file" .rb)
+            package_name=$(basename "$file" .rb)
 
-            echo "Checking ${cask_name}"
-            script/update-cask "$cask_name"
+            echo "Checking ${package_name}"
+            script/update "$package_name"
 
             if git diff --quiet --exit-code -- "$file"; then
-              echo "No ${cask_name} update to commit"
+              echo "No ${package_name} update to commit"
               continue
             fi
 
             version=$(ruby -ne 'puts $1 if /^  version "([^"]+)"$/ =~ $_' "$file")
             git add "$file"
-            git commit -m "${cask_name} ${version}"
+            git commit -m "${package_name} ${version}"
             updated=1
-          done < <(find Casks -type f -name "*.rb" | sort)
+          done < <(find Casks Formula -type f -name "*.rb" | sort)
 
           if [ "$updated" -eq 1 ]; then
             git push
           else
-            echo "No cask updates to push"
+            echo "No package updates to push"
           fi
