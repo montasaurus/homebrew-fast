@@ -1,7 +1,7 @@
 class Nub < Formula
   desc "Fast all-in-one toolkit that augments Node.js"
   homepage "https://github.com/nubjs/nub"
-  version "0.1.14"
+  version "0.2.2"
   license "MIT"
 
   livecheck do
@@ -13,24 +13,24 @@ class Nub < Formula
   on_macos do
     on_arm do
       url "https://github.com/nubjs/nub/releases/download/v#{version}/nub-darwin-arm64.tar.gz"
-      sha256 "cdaa6250bbdb85100334a95543fdb50dd2bd09b87dbf7b00d611041e76133a4c"
+      sha256 "1c561d820145e9eb7640f6f97c0fe2f2d8b8d4a4d64b19f78fccf8f9dd79ac46"
     end
 
     on_intel do
       url "https://github.com/nubjs/nub/releases/download/v#{version}/nub-darwin-x64.tar.gz"
-      sha256 "368491d4e6654666dee270071aff356be1e90ab82fa5621fea737f21176da66c"
+      sha256 "39c0f5200be3688e776c51ee2978e3cfe50fdb50946261a52ca42f6481145d75"
     end
   end
 
   on_linux do
     on_arm do
       url "https://github.com/nubjs/nub/releases/download/v#{version}/nub-linux-arm64.tar.gz"
-      sha256 "0fb7b60291d24e7078f20874bd970457c4069ee8687e1e1898b4b651fb3920e1"
+      sha256 "b9a292a725a959809fd629e7b3d8d6d886480300b8451bb41f8fb4a5098107ec"
     end
 
     on_intel do
       url "https://github.com/nubjs/nub/releases/download/v#{version}/nub-linux-x64.tar.gz"
-      sha256 "f6ae9c6f73b47b836f365a54899493a4a50bc1211baebc07791a886d8780c997"
+      sha256 "6cc63a89f25f12719bce9afc97e513cc8ee22ef203e4a72a3c7398e62b413a23"
     end
   end
 
