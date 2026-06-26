@@ -58,23 +58,6 @@ PACKAGES = {
       "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/#{version}/#{path}/claude"
     },
   },
-  "nub" => {
-    type: :formula,
-    file: "Formula/nub.rb",
-    sha_order: %i[darwin_arm64 darwin_x64 linux_arm64 linux_x64],
-    github_repo: "nubjs/nub",
-    tag_regex: /\Av(\d+(?:\.\d+)+)\z/,
-    assets: {
-      darwin_arm64: "nub-darwin-arm64.tar.gz",
-      darwin_x64: "nub-darwin-x64.tar.gz",
-      linux_arm64: "nub-linux-arm64.tar.gz",
-      linux_x64: "nub-linux-x64.tar.gz",
-    },
-    url_for: lambda { |version, key|
-      asset = PACKAGES.fetch("nub").fetch(:assets).fetch(key)
-      "https://github.com/nubjs/nub/releases/download/v#{version}/#{asset}"
-    },
-  },
 }.freeze
 
 def usage
@@ -256,7 +239,7 @@ end
 
 def resolve_latest(package_name)
   case package_name
-  when "codex", "nub"
+  when "codex"
     version, release = latest_github_release(package_name)
     [version, release]
   when "claude-code"
@@ -269,7 +252,7 @@ end
 
 def package_shas(package_name, metadata, version)
   case package_name
-  when "codex", "nub"
+  when "codex"
     github_asset_shas(package_name, metadata, version)
   when "claude-code"
     claude_shas(metadata, version)
