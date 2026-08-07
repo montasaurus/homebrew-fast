@@ -8,7 +8,7 @@ cask "codex" do
          arm64_linux:  "eb677c80f666b1ab8b4b1d083b66e8d614b1281d960bb6f9fd8ca98f58b38b90",
          x86_64_linux: "0246e2e773834e07f0fb5249ed6ebad12e4591e608f8c7bb97dd6a9690544c36"
 
-  url "https://github.com/openai/codex/releases/download/rust-v#{version}/codex-#{arch}-#{os}.tar.gz"
+  url "https://github.com/openai/codex/releases/download/rust-v#{version}/codex-package-#{arch}-#{os}.tar.gz"
   name "Codex"
   desc "OpenAI's coding agent that runs in your terminal"
   homepage "https://github.com/openai/codex"
@@ -19,9 +19,8 @@ cask "codex" do
     strategy :github_latest
   end
 
-  depends_on formula: "ripgrep"
-
-  binary "codex-#{arch}-#{os}", target: "codex"
+  binary "bin/codex"
+  generate_completions_from_executable "bin/codex", "completion"
 
   zap rmdir: "~/.codex"
 end
