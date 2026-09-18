@@ -2,11 +2,11 @@ cask "claude-code" do
   arch arm: "arm64", intel: "x64"
   os macos: "darwin", linux: "linux"
 
-  version "2.1.274"
-  sha256 arm:          "3509913f9d1576316c8845b88837f8fd3bbbcf26625833ac82cfb6b8985da94a",
-         x86_64:       "b18e8c9d7666d8987a174ac65e0019f4ba6befa73d2f75c05cbe92e5093431eb",
-         x86_64_linux: "15e2d05148f801b5774032faad87e624ecd172e9903288bda448b892eb58fa07",
-         arm64_linux:  "2db904daea17addff9de557ba26a725916888aa7b546e2c5dd989c20d9d49ab3"
+  version "2.1.276"
+  sha256 arm:          "9de364db11a410d53cbbb0f6b1f18c66c90053efc9a63370072856d10db66329",
+         x86_64:       "cf0b4af7bce5d991a577d1150e86d45b7b83ef57cdb0384044ca54661ded24c6",
+         x86_64_linux: "8a56c8a14bd3cb246e2bdb7e60aefe0f609bff78c8bbcc5ea6b1817c111c6145",
+         arm64_linux:  "e9ac3df956083645578a382ad64ec304468666e362c33bfdefd803cd6ff596b0"
 
   url "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/#{version}/#{os}-#{arch}/claude"
   name "Claude Code"
